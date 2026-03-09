@@ -1,45 +1,17 @@
 const { getIosAppInfo } = require("../functions/src/ios");
 const { getAndroidAppInfo } = require("../functions/src/android");
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const ALLOWED_PLATFORMS = new Set(["ios", "android", "both"]);
 const BUNDLE_ID_REGEX = /^[a-z0-9](?:[a-z0-9._-]{0,253}[a-z0-9])?$/i;
 const COUNTRY_REGEX = /^[a-z]{2}$/i;
-const CACHE_TTL_MS = 10 * 60 * 1000;
 const RATE_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT = 60;
-const appCache = new Map();
+const RATE_LIMIT_PER_WINDOW = 60;
+
+// ─── Rate limiter (in-memory, best-effort per serverless instance) ─────────────
+
 const requestBuckets = new Map();
-
-function getScalarQueryValue(value) {
-  if (Array.isArray(value)) return value[0];
-  return value;
-}
-
-function validateInputs(query) {
-  const rawBundleId = getScalarQueryValue(query.bundleId);
-  const rawPlatform = getScalarQueryValue(query.platform) || "both";
-  const rawCountry = getScalarQueryValue(query.country) || "us";
-
-  if (typeof rawBundleId !== "string") {
-    return { error: "Missing required parameter: bundleId" };
-  }
-
-  const bundleId = rawBundleId.trim();
-  if (!bundleId) return { error: "Missing required parameter: bundleId" };
-  if (!BUNDLE_ID_REGEX.test(bundleId)) return { error: "Invalid bundleId format" };
-
-  const platform = String(rawPlatform).trim().toLowerCase();
-  if (!ALLOWED_PLATFORMS.has(platform)) {
-    return { error: "Invalid platform. Must be: ios | android | both" };
-  }
-
-  const country = String(rawCountry).trim().toLowerCase();
-  if (!COUNTRY_REGEX.test(country)) {
-    return { error: "Invalid country format. Must be ISO 2-letter code, e.g. us, vn" };
-  }
-
-  return { bundleId: bundleId.toLowerCase(), platform, country };
-}
 
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
@@ -51,128 +23,158 @@ function getClientIp(req) {
 
 function isRateLimited(ip) {
   const now = Date.now();
-  const current = requestBuckets.get(ip);
-  if (!current || now - current.windowStart > RATE_WINDOW_MS) {
+  const bucket = requestBuckets.get(ip);
+  if (!bucket || now - bucket.windowStart > RATE_WINDOW_MS) {
     requestBuckets.set(ip, { windowStart: now, count: 1 });
     return false;
   }
-
-  current.count += 1;
-  return current.count > RATE_LIMIT;
+  bucket.count += 1;
+  return bucket.count > RATE_LIMIT_PER_WINDOW;
 }
 
-function getCacheKey(bundleId, platform, country) {
-  return `${bundleId}|${platform}|${country}`;
+// ─── Input validation ─────────────────────────────────────────────────────────
+
+function getScalar(value) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
-function getCachedResult(key) {
-  const cached = appCache.get(key);
-  if (!cached) return null;
-  if (Date.now() - cached.createdAt > CACHE_TTL_MS) {
-    appCache.delete(key);
-    return null;
+function validateQuery(query) {
+  const rawBundleId = getScalar(query.bundleId);
+  const rawPlatform = getScalar(query.platform) || "both";
+  const rawCountry = getScalar(query.country) || "us";
+
+  if (typeof rawBundleId !== "string" || !rawBundleId.trim()) {
+    return { error: "Missing required parameter: bundleId" };
   }
-  return cached.payload;
+
+  const bundleId = rawBundleId.trim().toLowerCase();
+  if (!BUNDLE_ID_REGEX.test(bundleId)) {
+    return { error: "Invalid bundleId format" };
+  }
+
+  const platform = String(rawPlatform).trim().toLowerCase();
+  if (!ALLOWED_PLATFORMS.has(platform)) {
+    return { error: "Invalid platform. Must be: ios | android | both" };
+  }
+
+  const country = String(rawCountry).trim().toLowerCase();
+  if (!COUNTRY_REGEX.test(country)) {
+    return { error: "Invalid country. Must be ISO 2-letter code, e.g. us, vn" };
+  }
+
+  return { bundleId, platform, country };
 }
 
-function setCachedResult(key, payload) {
-  appCache.set(key, { createdAt: Date.now(), payload });
-}
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 
 function setCorsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Cache-Control", "no-store");
 }
+
+// ─── Handler ──────────────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
   setCorsHeaders(res);
 
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-
+  if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const clientIp = getClientIp(req);
-  if (isRateLimited(clientIp)) {
-    return res.status(429).json({ error: "Too many requests. Please try again later." });
+  const ip = getClientIp(req);
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: "Too many requests. Please wait and try again." });
   }
 
-  const validated = validateInputs(req.query || {});
+  const validated = validateQuery(req.query || {});
   if (validated.error) {
     return res.status(400).json({ error: validated.error });
   }
 
-  const { bundleId: id, platform: plt, country } = validated;
-  const cacheKey = getCacheKey(id, plt, country);
-  const cached = getCachedResult(cacheKey);
-  if (cached) {
-    return res.status(200).json({ ...cached, cache: "hit" });
-  }
-
-  const result = {
-    status: "success",
-    bundleId: id,
-    platform: plt,
-    country,
-    timestamp: new Date().toISOString(),
-    ios: null,
-    android: null,
-    cache: "miss",
-  };
+  const { bundleId, platform, country } = validated;
+  const startTime = Date.now();
   const errors = {};
+  let iosData = null;
+  let androidData = null;
 
   try {
-    if (plt === "ios" || plt === "both") {
+    // Fetch iOS and Android in parallel when platform=both for faster response
+    if (platform === "both") {
+      const [iosResult, androidResult] = await Promise.allSettled([
+        getIosAppInfo(bundleId, country, { timeoutMs: 8000 }),
+        getAndroidAppInfo(bundleId, country, "en", { timeoutMs: 12000 }),
+      ]);
+
+      if (iosResult.status === "fulfilled") {
+        iosData = iosResult.value;
+      } else {
+        errors.ios = iosResult.reason?.message || "Unknown iOS error";
+        console.warn(`[appinfo] iOS error for ${bundleId}:`, errors.ios);
+      }
+
+      if (androidResult.status === "fulfilled") {
+        androidData = androidResult.value;
+      } else {
+        errors.android = androidResult.reason?.message || "Unknown Android error";
+        console.warn(`[appinfo] Android error for ${bundleId}:`, errors.android);
+      }
+    } else if (platform === "ios") {
       try {
-        result.ios = await getIosAppInfo(id, country, { retries: 1, timeoutMs: 8000 });
-      } catch (error) {
-        errors.ios = error.message;
-        console.warn("iOS fetch error:", error.message);
+        iosData = await getIosAppInfo(bundleId, country, { timeoutMs: 8000 });
+      } catch (e) {
+        errors.ios = e.message;
+        console.warn(`[appinfo] iOS error for ${bundleId}:`, e.message);
+      }
+    } else {
+      try {
+        androidData = await getAndroidAppInfo(bundleId, country, "en", { timeoutMs: 12000 });
+      } catch (e) {
+        errors.android = e.message;
+        console.warn(`[appinfo] Android error for ${bundleId}:`, e.message);
       }
     }
 
-    if (plt === "android" || plt === "both") {
-      try {
-        result.android = await getAndroidAppInfo(id, country, "en", { retries: 1, timeoutMs: 10000 });
-      } catch (error) {
-        errors.android = error.message;
-        console.warn("Android fetch error:", error.message);
-      }
-    }
+    const hasErrors = Object.keys(errors).length > 0;
+    const iosNotFound = (platform === "ios" || platform === "both") && iosData === null;
+    const androidNotFound = (platform === "android" || platform === "both") && androidData === null;
+    const allNotFound =
+      (platform === "both" && iosNotFound && androidNotFound) ||
+      (platform === "ios" && iosNotFound) ||
+      (platform === "android" && androidNotFound);
 
-    if (Object.keys(errors).length > 0) {
-      result.errors = errors;
-      result.status = "partial_success";
-    }
-
-    const notFound =
-      (plt === "both" && result.ios === null && result.android === null) ||
-      (plt === "ios" && result.ios === null) ||
-      (plt === "android" && result.android === null);
-
-    if (notFound && Object.keys(errors).length === 0) {
+    // Determine overall status
+    let status = "success";
+    if (allNotFound && !hasErrors) {
       return res.status(404).json({
         status: "not_found",
-        error: "App not found on the selected platform(s)",
-        bundleId: id,
-        platform: plt,
+        bundleId,
+        platform,
         country,
+        error: "App not found on the selected platform(s)",
       });
     }
+    if (allNotFound && hasErrors) status = "source_error";
+    else if (hasErrors) status = "partial_success";
 
-    if (notFound && Object.keys(errors).length > 0) {
-      result.status = "source_error";
-    }
+    const response = {
+      status,
+      bundleId,
+      platform,
+      country,
+      latencyMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
 
-    setCachedResult(cacheKey, result);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    return res.status(500).json({ error: "Internal server error", detail: error.message });
+    if (platform === "ios" || platform === "both") response.ios = iosData;
+    if (platform === "android" || platform === "both") response.android = androidData;
+    if (hasErrors) response.errors = errors;
+
+    return res.status(200).json(response);
+  } catch (e) {
+    console.error("[appinfo] Unexpected error:", e);
+    return res.status(500).json({ error: "Internal server error", detail: e.message });
   }
 };
