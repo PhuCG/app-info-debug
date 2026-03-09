@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/appinfo.js": {
+      "maxDuration": 30
+    }
+  }
+}

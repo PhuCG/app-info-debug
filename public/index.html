@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Info Checker — Bundle ID Lookup</title>
+  <meta name="description" content="Look up live app store information by Bundle ID or Package Name. Get version, rating, release notes and more for iOS and Android apps." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #111118;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-glow: rgba(99,102,241,0.4);
+      --text: #f0f0ff;
+      --text-muted: #8888aa;
+      --text-dim: #555570;
+      --ios: #3b82f6;
+      --ios-glow: rgba(59,130,246,0.3);
+      --android: #22c55e;
+      --android-glow: rgba(34,197,94,0.3);
+      --accent: #6366f1;
+      --accent-glow: rgba(99,102,241,0.25);
+      --danger: #f43f5e;
+      --warning: #f59e0b;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated background orbs */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #6366f1, transparent 70%);
+      top: -200px; left: -200px;
+      animation: floatOrb 12s ease-in-out infinite alternate;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #3b82f6, transparent 70%);
+      bottom: -150px; right: -150px;
+      animation: floatOrb 14s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(60px, 60px); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeDown 0.6s ease both;
+    }
+    .logo {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 30px rgba(99,102,241,0.4);
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #f0f0ff 30%, #8888cc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 400;
+    }
+
+    /* ── Search Card ── */
+    .search-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      margin-bottom: 32px;
+      backdrop-filter: blur(20px);
+      animation: fadeUp 0.6s ease 0.1s both;
+      transition: border-color 0.3s;
+    }
+    .search-card:focus-within {
+      border-color: var(--border-glow);
+      box-shadow: 0 0 0 1px var(--border-glow), 0 8px 40px rgba(99,102,241,0.1);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .input-wrap {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+    .input-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 18px;
+      pointer-events: none;
+    }
+    #bundleInput {
+      width: 100%;
+      padding: 14px 16px 14px 46px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'Inter', monospace;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #bundleInput::placeholder { color: var(--text-dim); }
+    #bundleInput:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    /* Platform selector */
+    .platform-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px;
+    }
+    .platform-tabs label {
+      cursor: pointer;
+      padding: 10px 16px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      user-select: none;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .platform-tabs input[type="radio"] { display: none; }
+    .platform-tabs input[type="radio"]:checked + label {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 2px 12px rgba(99,102,241,0.4);
+    }
+    .platform-tabs label:hover:not([class*="checked"]) {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    /* Check button */
+    #checkBtn {
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+    }
+    #checkBtn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(99,102,241,0.5);
+    }
+    #checkBtn:active:not(:disabled) { transform: translateY(0); }
+    #checkBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Example hints */
+    .hints {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .hints span { font-size: 0.78rem; color: var(--text-dim); }
+    .hint-tag {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: monospace;
+    }
+    .hint-tag:hover { background: var(--surface-hover); color: var(--text); border-color: var(--accent); }
+
+    /* ── State: Loading ── */
+    #stateLoading {
+      display: none;
+      text-align: center;
+      padding: 60px 0;
+      animation: fadeUp 0.4s ease both;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #stateLoading p { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* ── State: Error ── */
+    #stateError {
+      display: none;
+      background: rgba(244,63,94,0.08);
+      border: 1px solid rgba(244,63,94,0.25);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      display: none;
+      gap: 12px;
+      align-items: flex-start;
+      animation: fadeUp 0.4s ease both;
+    }
+    #stateError .err-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+    #stateError h3 { font-size: 0.95rem; font-weight: 600; color: var(--danger); margin-bottom: 4px; }
+    #stateError p { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* ── Results ── */
+    #stateResults {
+      display: none;
+      flex-direction: column;
+      gap: 24px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    /* Platform result card */
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .result-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .app-icon {
+      width: 64px; height: 64px;
+      border-radius: 14px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--surface-hover);
+    }
+    .app-icon-placeholder {
+      width: 64px; height: 64px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .app-info { flex: 1; min-width: 0; }
+    .app-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .app-developer { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+    .platform-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-ios { background: rgba(59,130,246,0.15); color: var(--ios); border: 1px solid rgba(59,130,246,0.25); }
+    .badge-android { background: rgba(34,197,94,0.12); color: var(--android); border: 1px solid rgba(34,197,94,0.25); }
+
+    .not-found-badge {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(244,63,94,0.1);
+      border: 1px solid rgba(244,63,94,0.2);
+      border-radius: 100px;
+      font-size: 0.78rem;
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    /* Store link button */
+    .store-link {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .store-link-ios { background: var(--ios-glow); color: var(--ios); border: 1px solid rgba(59,130,246,0.3); }
+    .store-link-android { background: var(--android-glow); color: var(--android); border: 1px solid rgba(34,197,94,0.3); }
+    .store-link:hover { filter: brightness(1.2); transform: translateY(-1px); }
+
+    /* Stats strip */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-item {
+      padding: 14px 18px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .stat-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-stars { color: var(--warning); font-size: 1rem; }
+
+    /* Info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0;
+      padding: 4px 0;
+    }
+    .info-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .info-item:nth-child(even) { border-right: none; }
+    .info-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+    .info-val {
+      font-size: 0.88rem;
+      color: var(--text);
+      font-weight: 500;
+      word-break: break-all;
+    }
+    .info-val.mono { font-family: 'Courier New', monospace; font-size: 0.82rem; }
+    .info-val.version {
+      font-size: 1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Genres */
+    .genre-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .genre-tag {
+      padding: 3px 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Release notes */
+    .release-notes-section {
+      padding: 18px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .release-notes-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .release-notes-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 120px;
+      overflow: hidden;
+      position: relative;
+    }
+    .release-notes-text.expanded { max-height: none; }
+    .read-more {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.82rem;
+      cursor: pointer;
+      margin-top: 6px;
+      padding: 0;
+      text-decoration: underline;
+    }
+
+    /* Copy button */
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-left: 6px;
+    }
+    .copy-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .copy-btn.copied { color: var(--android); border-color: var(--android); }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+    footer a { color: var(--text-dim); text-decoration: none; }
+    footer a:hover { color: var(--text-muted); }
+
+    @media (max-width: 600px) {
+      .input-row { flex-direction: column; }
+      .platform-tabs { width: 100%; justify-content: space-between; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr); }
+      .card-header { flex-wrap: wrap; }
+      .store-link { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo">🔍</div>
+      <h1>App Info Checker</h1>
+      <p>Look up live app store info by Bundle ID or Package Name</p>
+    </header>
+
+    <!-- Search Card -->
+    <div class="search-card">
+      <div class="input-row">
+        <div class="input-wrap">
+          <span class="input-icon">📦</span>
+          <input
+            type="text"
+            id="bundleInput"
+            placeholder="com.example.myapp"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="platform-tabs" role="group" aria-label="Platform">
+          <input type="radio" name="platform" id="plt-both"    value="both"    checked />
+          <label for="plt-both">🌐 Both</label>
+          <input type="radio" name="platform" id="plt-ios"     value="ios"     />
+          <label for="plt-ios">🍎 iOS</label>
+          <input type="radio" name="platform" id="plt-android" value="android" />
+          <label for="plt-android">🤖 Android</label>
+        </div>
+
+        <button id="checkBtn" onclick="doCheck()">Check</button>
+      </div>
+
+      <div class="hints">
+        <span>Try:</span>
+        <span class="hint-tag" onclick="fillExample('com.whatsapp')">com.whatsapp</span>
+        <span class="hint-tag" onclick="fillExample('com.facebook.katana')">com.facebook.katana</span>
+        <span class="hint-tag" onclick="fillExample('com.spotify.music')">com.spotify.music</span>
+        <span class="hint-tag" onclick="fillExample('com.apple.mobilesafari')">com.apple.mobilesafari</span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="stateLoading">
+      <div class="spinner"></div>
+      <p>Fetching app info from stores…</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="stateError" style="display:none; flex-direction:row;">
+      <div class="err-icon">⚠️</div>
+      <div>
+        <h3 id="errTitle">Something went wrong</h3>
+        <p id="errMsg"></p>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="stateResults"></div>
+
+    <footer>
+      <p>Data sourced from <a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/" target="_blank">iTunes Search API</a> & Google Play Store &nbsp;·&nbsp; Made with ❤️</p>
+    </footer>
+  </div>
+
+  <script>
+    // ─── Config ───────────────────────────────────────────────────────────
+    // API base can be overridden by URL param ?apiBase=... then saved in localStorage.
+    // Example: ?apiBase=https://your-vercel-app.vercel.app/api/appinfo
+    const apiBaseFromUrl = new URLSearchParams(window.location.search).get("apiBase");
+    if (apiBaseFromUrl) {
+      localStorage.setItem("APP_API_BASE", apiBaseFromUrl);
+    }
+    const API_BASE = localStorage.getItem("APP_API_BASE") || "/api/appinfo";
+
+    // ─── Helpers ──────────────────────────────────────────────────────────
+    function fillExample(id) {
+      document.getElementById("bundleInput").value = id;
+      document.getElementById("bundleInput").focus();
+    }
+
+    function getSelectedPlatform() {
+      return document.querySelector('input[name="platform"]:checked')?.value || "both";
+    }
+
+    function showState(name) {
+      ["stateLoading", "stateError", "stateResults"].forEach(id => {
+        const el = document.getElementById(id);
+        if (id === name) {
+          el.style.display = (id === "stateResults") ? "flex" : (id === "stateError") ? "flex" : "block";
+        } else {
+          el.style.display = "none";
+        }
+      });
+    }
+
+    function showError(title, msg) {
+      document.getElementById("errTitle").textContent = title;
+      document.getElementById("errMsg").textContent = msg;
+      showState("stateError");
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes) return null;
+      const mb = parseInt(bytes) / 1024 / 1024;
+      return mb >= 1000 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(0)} MB`;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return null;
+      try {
+        return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+      } catch { return iso; }
+    }
+
+    function starsHtml(rating) {
+      if (!rating) return "–";
+      const full = Math.floor(rating);
+      const half = rating - full >= 0.5 ? 1 : 0;
+      const empty = 5 - full - half;
+      return (
+        '<span class="stat-stars">' +
+        "★".repeat(full) + (half ? "½" : "") + "☆".repeat(empty) +
+        "</span>"
+      );
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function escapeJsString(value) {
+      return encodeURIComponent(String(value ?? ""));
+    }
+
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "✓ Copied";
+        btn.classList.add("copied");
+        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1500);
+      });
+    }
+
+    // ─── Build result card ─────────────────────────────────────────────────
+    function buildCard(data, platform) {
+      // Container
+      const card = document.createElement("div");
+      card.className = "result-card";
+      card.style.animation = `fadeUp 0.5s ease ${platform === "ios" ? "0" : "0.1"}s both`;
+
+      if (!data) {
+        // Not found
+        card.innerHTML = `
+          <div class="card-header">
+            <div class="app-icon-placeholder">${platform === "ios" ? "🍎" : "🤖"}</div>
+            <div class="app-info">
+              <div class="app-name" style="color:var(--text-muted)">Not Found on ${platform === "ios" ? "App Store" : "Google Play"}</div>
+              <div class="app-developer" style="margin-bottom:0">This app could not be found on the selected store.</div>
+            </div>
+            <span class="platform-badge badge-${platform}">${platform === "ios" ? "🍎 iOS" : "🤖 Android"}</span>
+          </div>
+        `;
+        return card;
+      }
+
+      const isIos = platform === "ios";
+      const badgeClass = isIos ? "badge-ios" : "badge-android";
+      const badgeLabel = isIos ? "🍎 iOS" : "🤖 Android";
+      const storeLinkClass = isIos ? "store-link-ios" : "store-link-android";
+      const storeLabel = isIos ? "App Store ↗" : "Play Store ↗";
+      const safeName = escapeHtml(data.name || "–");
+      const safeDeveloper = escapeHtml(data.developer || "–");
+      const safeIcon = escapeHtml(data.icon || "");
+      const safeStoreUrl = escapeHtml(data.storeUrl || "");
+
+      // Header
+      const header = document.createElement("div");
+      header.className = "card-header";
+      const iconImg = data.icon
+        ? `<img class="app-icon" src="${safeIcon}" alt="${safeName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <div class="app-icon-placeholder" style="display:none">${isIos ? "🍎" : "🤖"}</div>`
+        : `<div class="app-icon-placeholder">${isIos ? "🍎" : "🤖"}</div>`;
+      header.innerHTML = `
+        ${iconImg}
+        <div class="app-info">
+          <div class="app-name">${safeName}</div>
+          <div class="app-developer">${safeDeveloper}</div>
+          <span class="platform-badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+        ${data.storeUrl ? `<a class="store-link ${storeLinkClass}" href="${safeStoreUrl}" target="_blank" rel="noopener">${storeLabel}</a>` : ""}
+      `;
+      card.appendChild(header);
+
+      // Stats strip
+      const stats = document.createElement("div");
+      stats.className = "stats-strip";
+
+      const statItems = [
+        { val: data.version ? `<span style="font-size:0.95rem;font-weight:700;background:linear-gradient(135deg,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${data.version}</span>` : "–", label: "Version" },
+        { val: data.rating ? `${starsHtml(data.rating)} <br/><small>${data.rating}/5</small>` : "–", label: "Rating" },
+        { val: data.ratingCount ? Number(data.ratingCount).toLocaleString() : "–", label: "Reviews" },
+        ...(isIos
+          ? [{ val: data.fileSizeBytes ? formatBytes(data.fileSizeBytes) : "–", label: "Size" }]
+          : [{ val: data.installs || "–", label: "Installs" }]
+        ),
+      ];
+
+      statItems.forEach(s => {
+        stats.innerHTML += `
+          <div class="stat-item">
+            <div class="stat-val">${s.val}</div>
+            <div class="stat-label">${s.label}</div>
+          </div>
+        `;
+      });
+      card.appendChild(stats);
+
+      // Info grid
+      const grid = document.createElement("div");
+      grid.className = "info-grid";
+
+      const bundleLabel = isIos ? "Bundle ID" : "Package Name";
+      const osLabel = isIos ? "Min iOS" : "Min Android";
+      const osVal = isIos ? data.minOsVersion : data.minAndroidVersion;
+      const dateLabel = isIos ? "Last Update" : "Last Update";
+      const dateVal = isIos
+        ? formatDate(data.currentVersionReleaseDate)
+        : (data.updated ? formatDate(data.updated) : null);
+
+      const infoItems = [
+        {
+          label: bundleLabel,
+          val: `<span class="mono">${escapeHtml(data.bundleId || "–")}</span>
+                <button class="copy-btn" onclick="copyText(decodeURIComponent('${escapeJsString(data.bundleId || "")}'), this)">Copy</button>`
+        },
+        { label: "Developer", val: escapeHtml(data.developer || "–") },
+        { label: osLabel, val: escapeHtml(osVal || "–") },
+        { label: dateLabel, val: escapeHtml(dateVal || "–") },
+        { label: "Genre", val: escapeHtml(data.primaryGenre || data.genre || "–") },
+        { label: "Content Rating", val: escapeHtml(data.contentAdvisoryRating || data.contentRating || "–") },
+        ...(isIos
+          ? [{ label: "Price", val: escapeHtml(data.price === 0 ? "Free" : `${data.currency} ${data.price}`) }]
+          : [{ label: "Price", val: escapeHtml(data.free ? "Free" : `${data.currency || ""} ${data.price || "–"}`) }]
+        ),
+        { label: "Release Date", val: escapeHtml(formatDate(data.releaseDate || data.released) || "–") },
+      ];
+
+      infoItems.forEach(item => {
+        grid.innerHTML += `
+          <div class="info-item">
+            <div class="info-label">${item.label}</div>
+            <div class="info-val">${item.val}</div>
+          </div>
+        `;
+      });
+      card.appendChild(grid);
+
+      // Release notes / recent changes
+      const notes = isIos ? data.releaseNotes : data.recentChanges;
+      if (notes && notes.trim()) {
+        const notesSection = document.createElement("div");
+        notesSection.className = "release-notes-section";
+        const short = notes.length > 280;
+        notesSection.innerHTML = `
+          <div class="release-notes-label">${isIos ? "Release Notes" : "Recent Changes"}</div>
+          <div class="release-notes-text" id="rn-${platform}">${escapeHtml(notes)}</div>
+          ${short ? `<button class="read-more" onclick="toggleNotes('${platform}', this)">Show more</button>` : ""}
+        `;
+        card.appendChild(notesSection);
+      }
+
+      return card;
+    }
+
+    function toggleNotes(platform, btn) {
+      const el = document.getElementById(`rn-${platform}`);
+      if (el.classList.contains("expanded")) {
+        el.classList.remove("expanded");
+        btn.textContent = "Show more";
+      } else {
+        el.classList.add("expanded");
+        btn.textContent = "Show less";
+      }
+    }
+
+    // ─── Main check ────────────────────────────────────────────────────────
+    async function doCheck() {
+      const bundleId = document.getElementById("bundleInput").value.trim();
+      if (!bundleId) {
+        document.getElementById("bundleInput").focus();
+        document.getElementById("bundleInput").style.borderColor = "var(--danger)";
+        setTimeout(() => document.getElementById("bundleInput").style.borderColor = "", 1200);
+        return;
+      }
+
+      const platform = getSelectedPlatform();
+      const btn = document.getElementById("checkBtn");
+      btn.disabled = true;
+      btn.textContent = "Checking…";
+
+      showState("stateLoading");
+
+      try {
+        const url = `${API_BASE}?bundleId=${encodeURIComponent(bundleId)}&platform=${platform}`;
+        const res = await fetch(url);
+        const json = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            showError("App Not Found", `No app with Bundle ID "${bundleId}" found on ${platform === "both" ? "either store" : platform === "ios" ? "the App Store" : "Google Play"}.`);
+          } else if (res.status === 429) {
+            showError("Rate Limited", "Too many requests from your network. Please wait about a minute and try again.");
+          } else {
+            showError("Request Failed", json.error || `Server returned ${res.status}`);
+          }
+          return;
+        }
+
+        // Render results
+        const container = document.getElementById("stateResults");
+        container.innerHTML = "";
+
+        if (platform === "both") {
+          if (json.ios)     container.appendChild(buildCard(json.ios, "ios"));
+          else              container.appendChild(buildCard(null, "ios"));
+          if (json.android) container.appendChild(buildCard(json.android, "android"));
+          else              container.appendChild(buildCard(null, "android"));
+        } else if (platform === "ios") {
+          container.appendChild(buildCard(json.ios, "ios"));
+        } else {
+          container.appendChild(buildCard(json.android, "android"));
+        }
+
+        showState("stateResults");
+
+      } catch (err) {
+        console.error(err);
+        showError("Network Error", "Could not reach the server. Please check your connection and try again.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Check";
+      }
+    }
+
+    // Allow Enter key to trigger check
+    document.getElementById("bundleInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") doCheck();
+    });
+  </script>
+</body>
+</html>

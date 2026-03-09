@@ -1,0 +1,14 @@
+{
+  "name": "bundle-id-debug",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bundle ID app info API on Vercel",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "google-play-scraper": "^9.1.0",
+    "node-fetch": "^2.7.0"
+  }
+}
