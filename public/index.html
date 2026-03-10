@@ -596,14 +596,7 @@
   </div>
 
   <script>
-    // ─── Config ───────────────────────────────────────────────────────────
-    // API base can be overridden by URL param ?apiBase=... then saved in localStorage.
-    // Example: ?apiBase=https://your-vercel-app.vercel.app/api/appinfo
-    const apiBaseFromUrl = new URLSearchParams(window.location.search).get("apiBase");
-    if (apiBaseFromUrl) {
-      localStorage.setItem("APP_API_BASE", apiBaseFromUrl);
-    }
-    const API_BASE = localStorage.getItem("APP_API_BASE") || "/api/appinfo";
+    const API_BASE = "/api/appinfo";
 
     // ─── Helpers ──────────────────────────────────────────────────────────
     function fillExample(id) {
