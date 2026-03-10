@@ -1,5 +1,5 @@
-const { getIosAppInfo } = require("../functions/src/ios");
-const { getAndroidAppInfo } = require("../functions/src/android");
+const { getIosAppInfo } = require("../src/ios");
+const { getAndroidAppInfo } = require("../src/android");
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
