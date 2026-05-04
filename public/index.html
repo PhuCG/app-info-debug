@@ -1,44 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>App Store Info by Bundle ID | iOS & Android Version Checker</title>
-  <meta name="description" content="Instantly check live App Store & Google Play metadata by bundle ID or package name. See current version, ratings, installs, release notes and more for iOS & Android apps." />
-  <meta name="keywords" content="bundle id lookup, app store version checker, ios app info, android app info, google play metadata, itunes search api, check app version, app store bundle id" />
+  <meta name="description"
+    content="Instantly check live App Store & Google Play metadata by bundle ID or package name. See current version, ratings, installs, release notes and more for iOS & Android apps." />
+  <meta name="keywords"
+    content="bundle id lookup, app store version checker, ios app info, android app info, google play metadata, itunes search api, check app version, app store bundle id" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="App Store Info by Bundle ID" />
-  <meta property="og:description" content="Lookup live App Store & Google Play details by bundle ID / package name: version, ratings, installs and more for QA, monitoring and debugging." />
+  <meta property="og:description"
+    content="Lookup live App Store & Google Play details by bundle ID / package name: version, ratings, installs and more for QA, monitoring and debugging." />
   <meta property="og:url" content="https://bundle-id-debug.vercel.app/" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     :root {
       --bg: #0a0a0f;
       --bg2: #111118;
-      --surface: rgba(255,255,255,0.04);
-      --surface-hover: rgba(255,255,255,0.07);
-      --border: rgba(255,255,255,0.08);
-      --border-glow: rgba(99,102,241,0.4);
+      --surface: rgba(255, 255, 255, 0.04);
+      --surface-hover: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(99, 102, 241, 0.4);
       --text: #f0f0ff;
       --text-muted: #8888aa;
       --text-dim: #555570;
       --ios: #3b82f6;
-      --ios-glow: rgba(59,130,246,0.3);
+      --ios-glow: rgba(59, 130, 246, 0.3);
       --android: #22c55e;
-      --android-glow: rgba(34,197,94,0.3);
+      --android-glow: rgba(34, 197, 94, 0.3);
       --accent: #6366f1;
-      --accent-glow: rgba(99,102,241,0.25);
+      --accent-glow: rgba(99, 102, 241, 0.25);
       --danger: #f43f5e;
       --warning: #f59e0b;
       --radius: 16px;
       --radius-sm: 10px;
     }
 
-    html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
       font-family: 'Inter', system-ui, sans-serif;
@@ -50,7 +63,8 @@
     }
 
     /* Animated background orbs */
-    body::before, body::after {
+    body::before,
+    body::after {
       content: '';
       position: fixed;
       border-radius: 50%;
@@ -59,22 +73,33 @@
       pointer-events: none;
       z-index: 0;
     }
+
     body::before {
-      width: 600px; height: 600px;
+      width: 600px;
+      height: 600px;
       background: radial-gradient(circle, #6366f1, transparent 70%);
-      top: -200px; left: -200px;
+      top: -200px;
+      left: -200px;
       animation: floatOrb 12s ease-in-out infinite alternate;
     }
+
     body::after {
-      width: 500px; height: 500px;
+      width: 500px;
+      height: 500px;
       background: radial-gradient(circle, #3b82f6, transparent 70%);
-      bottom: -150px; right: -150px;
+      bottom: -150px;
+      right: -150px;
       animation: floatOrb 14s ease-in-out infinite alternate-reverse;
     }
 
     @keyframes floatOrb {
-      0% { transform: translate(0, 0); }
-      100% { transform: translate(60px, 60px); }
+      0% {
+        transform: translate(0, 0);
+      }
+
+      100% {
+        transform: translate(60px, 60px);
+      }
     }
 
     .container {
@@ -91,8 +116,10 @@
       margin-bottom: 48px;
       animation: fadeDown 0.6s ease both;
     }
+
     .logo {
-      width: 56px; height: 56px;
+      width: 56px;
+      height: 56px;
       background: linear-gradient(135deg, #6366f1, #3b82f6);
       border-radius: 16px;
       display: inline-flex;
@@ -100,8 +127,9 @@
       justify-content: center;
       font-size: 26px;
       margin-bottom: 16px;
-      box-shadow: 0 0 30px rgba(99,102,241,0.4);
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
     }
+
     header h1 {
       font-size: clamp(1.8rem, 4vw, 2.6rem);
       font-weight: 800;
@@ -112,6 +140,7 @@
       line-height: 1.2;
       margin-bottom: 8px;
     }
+
     header p {
       color: var(--text-muted);
       font-size: 1rem;
@@ -129,9 +158,10 @@
       animation: fadeUp 0.6s ease 0.1s both;
       transition: border-color 0.3s;
     }
+
     .search-card:focus-within {
       border-color: var(--border-glow);
-      box-shadow: 0 0 0 1px var(--border-glow), 0 8px 40px rgba(99,102,241,0.1);
+      box-shadow: 0 0 0 1px var(--border-glow), 0 8px 40px rgba(99, 102, 241, 0.1);
     }
 
     .input-row {
@@ -146,6 +176,7 @@
       min-width: 200px;
       position: relative;
     }
+
     .input-icon {
       position: absolute;
       left: 16px;
@@ -155,10 +186,11 @@
       font-size: 18px;
       pointer-events: none;
     }
+
     #bundleInput {
       width: 100%;
       padding: 14px 16px 14px 46px;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text);
@@ -167,7 +199,11 @@
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    #bundleInput::placeholder { color: var(--text-dim); }
+
+    #bundleInput::placeholder {
+      color: var(--text-dim);
+    }
+
     #bundleInput:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-glow);
@@ -177,11 +213,12 @@
     .platform-tabs {
       display: flex;
       gap: 6px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       padding: 5px;
     }
+
     .platform-tabs label {
       cursor: pointer;
       padding: 10px 16px;
@@ -196,12 +233,17 @@
       align-items: center;
       gap: 6px;
     }
-    .platform-tabs input[type="radio"] { display: none; }
-    .platform-tabs input[type="radio"]:checked + label {
+
+    .platform-tabs input[type="radio"] {
+      display: none;
+    }
+
+    .platform-tabs input[type="radio"]:checked+label {
       background: var(--accent);
       color: white;
-      box-shadow: 0 2px 12px rgba(99,102,241,0.4);
+      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
     }
+
     .platform-tabs label:hover:not([class*="checked"]) {
       background: var(--surface-hover);
       color: var(--text);
@@ -220,14 +262,22 @@
       cursor: pointer;
       transition: all 0.2s;
       white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
     }
+
     #checkBtn:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 6px 28px rgba(99,102,241,0.5);
+      box-shadow: 0 6px 28px rgba(99, 102, 241, 0.5);
     }
-    #checkBtn:active:not(:disabled) { transform: translateY(0); }
-    #checkBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #checkBtn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    #checkBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
     /* Example hints */
     .hints {
@@ -237,11 +287,16 @@
       flex-wrap: wrap;
       align-items: center;
     }
-    .hints span { font-size: 0.78rem; color: var(--text-dim); }
+
+    .hints span {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
     .hint-tag {
       font-size: 0.78rem;
       padding: 4px 10px;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--border);
       border-radius: 100px;
       color: var(--text-muted);
@@ -249,7 +304,12 @@
       transition: all 0.15s;
       font-family: monospace;
     }
-    .hint-tag:hover { background: var(--surface-hover); color: var(--text); border-color: var(--accent); }
+
+    .hint-tag:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: var(--accent);
+    }
 
     /* ── State: Loading ── */
     #stateLoading {
@@ -258,22 +318,33 @@
       padding: 60px 0;
       animation: fadeUp 0.4s ease both;
     }
+
     .spinner {
-      width: 48px; height: 48px;
+      width: 48px;
+      height: 48px;
       border: 3px solid var(--border);
       border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 0 auto 20px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #stateLoading p { color: var(--text-muted); font-size: 0.95rem; }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #stateLoading p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
 
     /* ── State: Error ── */
     #stateError {
       display: none;
-      background: rgba(244,63,94,0.08);
-      border: 1px solid rgba(244,63,94,0.25);
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.25);
       border-radius: var(--radius);
       padding: 20px 24px;
       display: none;
@@ -281,9 +352,24 @@
       align-items: flex-start;
       animation: fadeUp 0.4s ease both;
     }
-    #stateError .err-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
-    #stateError h3 { font-size: 0.95rem; font-weight: 600; color: var(--danger); margin-bottom: 4px; }
-    #stateError p { font-size: 0.85rem; color: var(--text-muted); }
+
+    #stateError .err-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    #stateError h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--danger);
+      margin-bottom: 4px;
+    }
+
+    #stateError p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
 
     /* ── Results ── */
     #stateResults {
@@ -302,9 +388,10 @@
       backdrop-filter: blur(20px);
       transition: transform 0.2s, box-shadow 0.2s;
     }
+
     .result-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
     }
 
     .card-header {
@@ -314,15 +401,19 @@
       padding: 20px 24px;
       border-bottom: 1px solid var(--border);
     }
+
     .app-icon {
-      width: 64px; height: 64px;
+      width: 64px;
+      height: 64px;
       border-radius: 14px;
       object-fit: cover;
       flex-shrink: 0;
       background: var(--surface-hover);
     }
+
     .app-icon-placeholder {
-      width: 64px; height: 64px;
+      width: 64px;
+      height: 64px;
       border-radius: 14px;
       background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
       display: flex;
@@ -331,7 +422,12 @@
       font-size: 28px;
       flex-shrink: 0;
     }
-    .app-info { flex: 1; min-width: 0; }
+
+    .app-info {
+      flex: 1;
+      min-width: 0;
+    }
+
     .app-name {
       font-size: 1.2rem;
       font-weight: 700;
@@ -341,7 +437,13 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .app-developer { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+
+    .app-developer {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
     .platform-badge {
       display: inline-flex;
       align-items: center;
@@ -351,8 +453,18 @@
       font-size: 0.75rem;
       font-weight: 600;
     }
-    .badge-ios { background: rgba(59,130,246,0.15); color: var(--ios); border: 1px solid rgba(59,130,246,0.25); }
-    .badge-android { background: rgba(34,197,94,0.12); color: var(--android); border: 1px solid rgba(34,197,94,0.25); }
+
+    .badge-ios {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--ios);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+    }
+
+    .badge-android {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--android);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
 
     .not-found-badge {
       margin-left: auto;
@@ -360,8 +472,8 @@
       align-items: center;
       gap: 6px;
       padding: 6px 14px;
-      background: rgba(244,63,94,0.1);
-      border: 1px solid rgba(244,63,94,0.2);
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.2);
       border-radius: 100px;
       font-size: 0.78rem;
       color: var(--danger);
@@ -382,9 +494,23 @@
       transition: all 0.2s;
       flex-shrink: 0;
     }
-    .store-link-ios { background: var(--ios-glow); color: var(--ios); border: 1px solid rgba(59,130,246,0.3); }
-    .store-link-android { background: var(--android-glow); color: var(--android); border: 1px solid rgba(34,197,94,0.3); }
-    .store-link:hover { filter: brightness(1.2); transform: translateY(-1px); }
+
+    .store-link-ios {
+      background: var(--ios-glow);
+      color: var(--ios);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .store-link-android {
+      background: var(--android-glow);
+      color: var(--android);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .store-link:hover {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
 
     /* Stats strip */
     .stats-strip {
@@ -393,20 +519,35 @@
       gap: 0;
       border-bottom: 1px solid var(--border);
     }
+
     .stat-item {
       padding: 14px 18px;
       border-right: 1px solid var(--border);
       text-align: center;
     }
-    .stat-item:last-child { border-right: none; }
+
+    .stat-item:last-child {
+      border-right: none;
+    }
+
     .stat-val {
       font-size: 1.1rem;
       font-weight: 700;
       color: var(--text);
       margin-bottom: 2px;
     }
-    .stat-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-    .stat-stars { color: var(--warning); font-size: 1rem; }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-stars {
+      color: var(--warning);
+      font-size: 1rem;
+    }
 
     /* Info grid */
     .info-grid {
@@ -415,20 +556,37 @@
       gap: 0;
       padding: 4px 0;
     }
+
     .info-item {
       padding: 14px 20px;
       border-bottom: 1px solid var(--border);
       border-right: 1px solid var(--border);
     }
-    .info-item:nth-child(even) { border-right: none; }
-    .info-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+
+    .info-item:nth-child(even) {
+      border-right: none;
+    }
+
+    .info-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 5px;
+    }
+
     .info-val {
       font-size: 0.88rem;
       color: var(--text);
       font-weight: 500;
       word-break: break-all;
     }
-    .info-val.mono { font-family: 'Courier New', monospace; font-size: 0.82rem; }
+
+    .info-val.mono {
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+    }
+
     .info-val.version {
       font-size: 1rem;
       font-weight: 700;
@@ -445,9 +603,10 @@
       gap: 6px;
       margin-top: 4px;
     }
+
     .genre-tag {
       padding: 3px 10px;
-      background: rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--border);
       border-radius: 100px;
       font-size: 0.75rem;
@@ -459,6 +618,7 @@
       padding: 18px 20px;
       border-top: 1px solid var(--border);
     }
+
     .release-notes-label {
       font-size: 0.72rem;
       color: var(--text-dim);
@@ -466,6 +626,7 @@
       letter-spacing: 0.04em;
       margin-bottom: 8px;
     }
+
     .release-notes-text {
       font-size: 0.85rem;
       color: var(--text-muted);
@@ -475,7 +636,11 @@
       overflow: hidden;
       position: relative;
     }
-    .release-notes-text.expanded { max-height: none; }
+
+    .release-notes-text.expanded {
+      max-height: none;
+    }
+
     .read-more {
       background: none;
       border: none;
@@ -499,17 +664,40 @@
       transition: all 0.15s;
       margin-left: 6px;
     }
-    .copy-btn:hover { background: var(--surface-hover); color: var(--text); }
-    .copy-btn.copied { color: var(--android); border-color: var(--android); }
+
+    .copy-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .copy-btn.copied {
+      color: var(--android);
+      border-color: var(--android);
+    }
 
     /* ── Animations ── */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-16px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* Footer */
@@ -519,18 +707,42 @@
       color: var(--text-dim);
       font-size: 0.8rem;
     }
-    footer a { color: var(--text-dim); text-decoration: none; }
-    footer a:hover { color: var(--text-muted); }
+
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--text-muted);
+    }
 
     @media (max-width: 600px) {
-      .input-row { flex-direction: column; }
-      .platform-tabs { width: 100%; justify-content: space-between; }
-      .stats-strip { grid-template-columns: repeat(3, 1fr); }
-      .card-header { flex-wrap: wrap; }
-      .store-link { width: 100%; justify-content: center; }
+      .input-row {
+        flex-direction: column;
+      }
+
+      .platform-tabs {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .stats-strip {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .card-header {
+        flex-wrap: wrap;
+      }
+
+      .store-link {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <!-- Header -->
@@ -545,21 +757,14 @@
       <div class="input-row">
         <div class="input-wrap">
           <span class="input-icon">📦</span>
-          <input
-            type="text"
-            id="bundleInput"
-            placeholder="com.example.myapp"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-          />
+          <input type="text" id="bundleInput" placeholder="com.example.myapp" autocomplete="off" autocorrect="off"
+            autocapitalize="off" spellcheck="false" />
         </div>
 
         <div class="platform-tabs" role="group" aria-label="Platform">
-          <input type="radio" name="platform" id="plt-both"    value="both"    checked />
+          <input type="radio" name="platform" id="plt-both" value="both" checked />
           <label for="plt-both">🌐 Both</label>
-          <input type="radio" name="platform" id="plt-ios"     value="ios"     />
+          <input type="radio" name="platform" id="plt-ios" value="ios" />
           <label for="plt-ios">🍎 iOS</label>
           <input type="radio" name="platform" id="plt-android" value="android" />
           <label for="plt-android">🤖 Android</label>
@@ -596,7 +801,9 @@
     <div id="stateResults"></div>
 
     <footer>
-      <p>Data sourced from <a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/" target="_blank">iTunes Search API</a> & Google Play Store &nbsp;·&nbsp; Made with ❤️</p>
+      <p>Data sourced from <a
+          href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/"
+          target="_blank">iTunes Search API</a> & Google Play Store &nbsp;·&nbsp; Made with ❤️</p>
     </footer>
   </div>
 
@@ -856,10 +1063,10 @@
         container.innerHTML = "";
 
         if (platform === "both") {
-          if (json.ios)     container.appendChild(buildCard(json.ios, "ios"));
-          else              container.appendChild(buildCard(null, "ios"));
+          if (json.ios) container.appendChild(buildCard(json.ios, "ios"));
+          else container.appendChild(buildCard(null, "ios"));
           if (json.android) container.appendChild(buildCard(json.android, "android"));
-          else              container.appendChild(buildCard(null, "android"));
+          else container.appendChild(buildCard(null, "android"));
         } else if (platform === "ios") {
           container.appendChild(buildCard(json.ios, "ios"));
         } else {
@@ -883,4 +1090,5 @@
     });
   </script>
 </body>
+
 </html>
