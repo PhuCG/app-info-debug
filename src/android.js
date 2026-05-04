@@ -160,6 +160,15 @@ async function fetchFromPlayWeb(packageName, country, lang, timeoutMs) {
  * @param {string} lang        - Language code (default: "en")
  * @param {object} options     - { timeoutMs }
  */
+// When an app isn't distributed in the requested country, Play Store returns
+// "VARY" / "Varies with device" instead of the real version. Retrying with
+// the app's home market (typically KR, JP, CN for Asian apps) resolves this.
+const VERSION_VARY_FALLBACK_COUNTRIES = ["kr", "jp", "gb", "de", "fr", "au"];
+
+function isVaryVersion(version) {
+  return !version || version === "VARY" || /varies/i.test(version);
+}
+
 async function getAndroidAppInfo(packageName, country = "us", lang = "en", options = {}) {
   const timeoutMs = Number.isInteger(options.timeoutMs) ? options.timeoutMs : 10000;
 
@@ -175,21 +184,46 @@ async function getAndroidAppInfo(packageName, country = "us", lang = "en", optio
       );
     });
 
+  let result = null;
+
   try {
     const app = await withTimeout(
       gplay.app({ appId: packageName, country, lang })
     );
-    return mapGplayApp(app);
+    result = mapGplayApp(app);
   } catch (scraperError) {
     if (scraperError.message && scraperError.message.includes("App not found")) {
       return null;
     }
-    // Scraper failed for non-404 reason (parser error, timeout, etc.)
-    // Fall through to HTML fallback.
     console.warn(`gplay scraper failed for ${packageName}: ${scraperError.message}`);
+    return fetchFromPlayWeb(packageName, country, lang, timeoutMs);
   }
 
-  return fetchFromPlayWeb(packageName, country, lang, timeoutMs);
+  // If version came back as "VARY", the app isn't distributed in the requested
+  // country — retry with fallback markets to find the real version.
+  if (isVaryVersion(result.version)) {
+    const fallbacks = VERSION_VARY_FALLBACK_COUNTRIES.filter((c) => c !== country);
+    for (const fallbackCountry of fallbacks) {
+      try {
+        const app = await withTimeout(
+          gplay.app({ appId: packageName, country: fallbackCountry, lang })
+        );
+        const fallbackResult = mapGplayApp(app);
+        if (!isVaryVersion(fallbackResult.version)) {
+          result.version = fallbackResult.version;
+          if (isVaryVersion(result.minAndroidVersion)) {
+            result.minAndroidVersion = fallbackResult.minAndroidVersion;
+            result.minAndroidVersionCode = fallbackResult.minAndroidVersionCode;
+          }
+          break;
+        }
+      } catch {
+        // ignore, try next fallback
+      }
+    }
+  }
+
+  return result;
 }
 
 module.exports = { getAndroidAppInfo };
